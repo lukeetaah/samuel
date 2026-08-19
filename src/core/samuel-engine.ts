@@ -1,8 +1,8 @@
 /**
  * SAMUEL CORE - Master Engine & Prompt Orchestrator
  * 
- * Unifies the modular conversational strategies into structured prompts
- * for local WebLLM inference, enforcing depth limits, safety, and explainability.
+ * OPTIMIZED FOR SPEED: Ultra-compact system prompt (~40 tokens),
+ * minimal history (last 2 messages), tight token cap.
  */
 
 import { ConversationState } from './conversation-state';
@@ -59,7 +59,7 @@ export class SamuelEngine {
         systemPrompt: '',
         messagesForLLM: [],
         rationale: 'Intervención preventiva de seguridad ante señales explícitas de riesgo.',
-        maxTokens: 120,
+        maxTokens: 60,
       };
     }
 
@@ -83,23 +83,22 @@ export class SamuelEngine {
     // 5. Explainability rationale
     const rationale = this.explainabilityEngine.generateRationale(strategy, contradiction, userInput);
 
-    // 6. Build the System Instruction
+    // 6. Build ULTRA-COMPACT system prompt (~40 tokens)
     const systemPrompt = this.buildSystemPrompt(
       strategy.recommendedAngle,
-      depthGuideline.toneGuidance,
       contradiction.detected ? contradiction.observationPhrase : undefined
     );
 
-    // 7. Assemble conversation messages (recent 6 messages max to maximize TTFT and speed)
-    const recentMessages = this.state.getMessages().slice(-6);
+    // 7. Assemble conversation — ONLY last 2 messages to minimize prefill
+    const recentMessages = this.state.getMessages().slice(-2);
     const messagesForLLM: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
       ...recentMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content: userInput },
     ];
 
-    // Cap max tokens tightly (45-90 tokens max) to guarantee fast generation under 2-3s
-    const maxTokens = Math.min(90, Math.max(35, depthGuideline.maxWords * 2));
+    // Cap max tokens HARD (25-50) for fast generation
+    const maxTokens = Math.min(50, Math.max(25, depthGuideline.maxWords));
 
     return {
       safetyCheck,
@@ -111,18 +110,13 @@ export class SamuelEngine {
     };
   }
 
-  private buildSystemPrompt(angleDirective: string, depthGuidance: string, contradictionHint?: string): string {
-    return `Sos SAMUEL, un interlocutor sobrio, lúcido y directo. No sos un bot genérico ni un asistente corporativo.
-
-REGLAS DE ORO:
-1. Hablá con naturalidad, en español directo y honesto.
-2. NO des consejos prefabricados, NO des listas con números (1, 2, 3...) ni digas "Aquí hay algunas opciones".
-3. NUNCA inventes números de emergencia (112, 130, 911, etc.) ni asumas crisis médica ante expresiones comunes como "quiero renunciar", "estoy harto", "estoy cansado".
-4. NO uses frases vacías ("Entiendo cómo te sentís", "Es completamente válido", "Lamento mucho").
-5. Respondé en 1 o 2 oraciones BREVES y hacé una sola pregunta que vaya directo al hueso del asunto.
-6. ${depthGuidance}
-7. Objetivo en esta respuesta: ${angleDirective}
-${contradictionHint ? `8. Tensión observada: "${contradictionHint}"` : ''}`;
+  private buildSystemPrompt(angle: string, contradictionHint?: string): string {
+    // ULTRA-COMPACT: ~40 tokens total. Every token here = ~0.4s of prefill time.
+    let prompt = `Sos SAMUEL. Hablás español directo, sin frases vacías ni listas. 1-2 oraciones + 1 pregunta breve. ${angle}`;
+    if (contradictionHint) {
+      prompt += ` Tensión: "${contradictionHint}"`;
+    }
+    return prompt;
   }
 
   public registerTurnOutput(

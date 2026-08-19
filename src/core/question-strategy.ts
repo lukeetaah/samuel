@@ -1,11 +1,8 @@
 /**
  * SAMUEL CORE - Question & Reflection Strategy
  * 
- * Drives genuine inquiry:
- * - Distinguishes facts from interpretations.
- * - Explores what the user actually wants vs what external actors do.
- * - Prevents canned robotic validation and false-positive crisis hotlines.
- * - Promotes concise, potent questions that move the user forward.
+ * OPTIMIZED: Ultra-short angle directives (max 10 words each)
+ * to minimize system prompt tokens and prefill time.
  */
 
 import { SessionMemory } from './types';
@@ -17,9 +14,6 @@ export interface StrategyDirective {
 }
 
 export class QuestionStrategy {
-  /**
-   * Determine the most constructive conversational angle for the current turn.
-   */
   public evaluateStrategy(
     latestUserText: string,
     _memory: SessionMemory,
@@ -27,7 +21,7 @@ export class QuestionStrategy {
   ): StrategyDirective {
     const lower = latestUserText.toLowerCase().trim();
 
-    // 1. Specific decision / resignation triggers ("quiero renunciar", "quiero dejar", "no aguanto mi trabajo")
+    // Resignation / quitting triggers
     if (
       lower.includes('renunciar') ||
       lower.includes('dejar mi trabajo') ||
@@ -37,81 +31,81 @@ export class QuestionStrategy {
     ) {
       return {
         focusArea: 'underlying_friction',
-        recommendedAngle: 'Preguntar con naturalidad qué es exactamente lo que detonó esas ganas de irse o qué se volvió insoportable hoy.',
-        rationale: 'Te pregunté esto para entender qué detonó las ganas de renunciar y cuál es el nudo central que ya no soportás.',
+        recommendedAngle: 'Preguntá qué detonó hoy las ganas de irse.',
+        rationale: 'Explorar qué detonó las ganas de renunciar.',
       };
     }
 
-    // 2. Initial short opening expressions ("Hola", "No sé qué me pasa", "Estoy harto", "Quiero descargarme")
+    // First turn openers
     if (turnCount <= 1) {
       if (lower === 'hola' || lower === 'hola.' || lower === 'buenas' || lower.length < 10) {
         return {
           focusArea: 'clarifying_open',
-          recommendedAngle: 'Invitar a poner en palabras lo que tenga en mente, de forma sobria y directa.',
-          rationale: 'Abrir un espacio neutral y seguro para que el usuario empiece por donde quiera.',
+          recommendedAngle: 'Invitá a decir qué tiene en mente.',
+          rationale: 'Abrir espacio para que empiece por donde quiera.',
         };
       }
 
       if (lower.includes('harto') || lower.includes('cansado') || lower.includes('no doy más')) {
         return {
           focusArea: 'underlying_friction',
-          recommendedAngle: 'Indagar qué colmó el límite o qué situación específica pesa más en este momento.',
-          rationale: 'Ayudar a delimitar el núcleo del cansancio antes de saltar a conclusiones.',
+          recommendedAngle: 'Preguntá qué situación puntual colmó el límite.',
+          rationale: 'Delimitar qué colmó el límite.',
         };
       }
 
-      if (lower.includes('no sé qué me pasa') || lower.includes('desorden') || lower.includes('raro') || lower.includes('confundido')) {
+      if (lower.includes('no sé qué me pasa') || lower.includes('confundido') || lower.includes('raro')) {
         return {
           focusArea: 'clarifying_open',
-          recommendedAngle: 'Proponer empezar por una escena o momento concreto reciente donde apareció ese malestar.',
-          rationale: 'Facilitar un punto de anclaje concreto cuando la mente está dispersa.',
+          recommendedAngle: 'Pedí un momento concreto reciente donde apareció eso.',
+          rationale: 'Anclar en algo concreto cuando la mente está dispersa.',
         };
       }
 
       if (lower.includes('descargar') || lower.includes('bronca') || lower.includes('enojado')) {
         return {
           focusArea: 'clarifying_open',
-          recommendedAngle: 'Dar espacio total para soltar lo que pasó sin interrumpir ni dar consejos.',
-          rationale: 'Permitir que te descargues libremente para despejar la cabeza.',
+          recommendedAngle: 'Dá espacio para soltar sin interrumpir.',
+          rationale: 'Permitir descarga libre.',
         };
       }
     }
 
-    // 3. High focus on other people's actions ("él me dijo", "ellos hacen", "mi jefe", "siempre me hacen esto")
-    const mentionsOthersCount = (lower.match(/\b(ellos|ella|él|jefe|pareja|mamá|papá|amigos|gente|nadie)\b/g) || []).length;
-    const mentionsSelfCount = (lower.match(/\b(yo|quiero|busco|siento|necesito|pienso|miedo|deseo)\b/g) || []).length;
+    // Focus on others vs self
+    const mentionsOthers = (lower.match(/\b(ellos|ella|él|jefe|pareja|mamá|papá|amigos|gente|nadie)\b/g) || []).length;
+    const mentionsSelf = (lower.match(/\b(yo|quiero|busco|siento|necesito|pienso|miedo)\b/g) || []).length;
 
-    if (mentionsOthersCount >= 2 && mentionsSelfCount <= 1 && turnCount >= 2) {
+    if (mentionsOthers >= 2 && mentionsSelf <= 1 && turnCount >= 2) {
       return {
         focusArea: 'user_agency',
-        recommendedAngle: 'Observar que se ha hablado mucho de lo que hacen los demás y redirigir hacia qué postura o deseo tiene el usuario.',
-        rationale: 'Hablaste mucho de lo que hicieron los demás; te pregunté esto para explorar qué lugar tomás vos frente a eso.',
+        recommendedAngle: 'Redirigí hacia qué quiere o siente el usuario.',
+        rationale: 'Explorar la postura propia frente a lo que hacen otros.',
       };
     }
 
-    // 4. Narrative overload / facts vs interpretation
-    if (lower.includes('obviamente') || lower.includes('seguro piensa que') || lower.includes('lo hace a propósito') || lower.includes('todo el mundo')) {
+    // Interpretation vs facts
+    if (lower.includes('obviamente') || lower.includes('seguro piensa') || lower.includes('a propósito') || lower.includes('todo el mundo')) {
       return {
         focusArea: 'facts_vs_interpretations',
-        recommendedAngle: 'Separar lo que ocurrió concretamente de la intención que se le atribuye a la otra persona.',
-        rationale: 'Te pregunté esto para distinguir los hechos concretos de lo que estás interpretando sobre sus intenciones.',
+        recommendedAngle: 'Separá hechos concretos de interpretación.',
+        rationale: 'Distinguir hechos de interpretaciones.',
       };
     }
 
-    // 5. Multiple turns with clear progress
+    // Closure after several turns
     if (turnCount >= 6) {
       return {
         focusArea: 'closure',
-        recommendedAngle: 'Verificar si las ideas quedaron más ordenadas o si hay algún punto clave que todavía quede pendiente.',
-        rationale: 'Evaluar si la conversación cumplió su propósito de descarga y orden o si queda algo por despejar.',
+        recommendedAngle: 'Preguntá si quedó algo pendiente o si las ideas se ordenaron.',
+        rationale: 'Evaluar si la conversación cumplió su propósito.',
       };
     }
 
-    // Default constructive exploration
+    // Default
     return {
       focusArea: 'underlying_friction',
-      recommendedAngle: 'Hacer una sola pregunta reflexiva que ayude a explorar qué peso o costo tiene esta situación ahora mismo.',
-      rationale: 'Indagar en el impacto real de lo que estás viviendo para clarificar su peso.',
+      recommendedAngle: 'Hacé una pregunta sobre el peso real de la situación.',
+      rationale: 'Explorar el impacto real de lo que vive.',
     };
   }
 }

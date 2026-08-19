@@ -34,7 +34,7 @@ describe('SAMUEL CORE Conversational Logic', () => {
     it('focuses on underlying friction when user is exhausted/overwhelmed', () => {
       const plan = questionStrategy.evaluateStrategy('Estoy harto de mi trabajo', mockMemory, 1);
       expect(plan.focusArea).toBe('underlying_friction');
-      expect(plan.rationale).toContain('delimitar');
+      expect(plan.rationale).toContain('colmó');
     });
 
     it('redirects to user agency when user talks predominantly about other people', () => {
@@ -44,7 +44,7 @@ describe('SAMUEL CORE Conversational Logic', () => {
         3
       );
       expect(plan.focusArea).toBe('user_agency');
-      expect(plan.rationale).toContain('demás');
+      expect(plan.rationale).toContain('postura');
     });
 
     it('separates facts from interpretations when user makes absolute mind-reading claims', () => {

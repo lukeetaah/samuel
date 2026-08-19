@@ -75,9 +75,9 @@ self.onmessage = async (event: MessageEvent) => {
       try {
         const stream = await engine.chat.completions.create({
           messages: messages,
-          temperature: options?.temperature ?? 0.65,
-          top_p: options?.topP ?? 0.85,
-          max_tokens: options?.maxTokens ?? 200,
+          temperature: options?.temperature ?? 0.5,
+          top_p: options?.topP ?? 0.8,
+          max_tokens: options?.maxTokens ?? 50,
           stream: true,
           stream_options: { include_usage: true },
         });

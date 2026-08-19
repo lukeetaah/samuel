@@ -127,8 +127,8 @@ export const App: React.FC = () => {
       try {
         await webLLMService.generateStream(turnPlan.messagesForLLM, {
           maxTokens: turnPlan.maxTokens,
-          temperature: 0.65,
-          topP: 0.85,
+          temperature: 0.5,
+          topP: 0.8,
           onToken: (_token, accumulated) => {
             accumulatedContent = accumulated;
             completionTokensCount++;
