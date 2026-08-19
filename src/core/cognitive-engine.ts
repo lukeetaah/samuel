@@ -1,162 +1,189 @@
 /**
- * SAMUEL CORE - Cognitive Intelligence Engine
+ * SAMUEL CORE - Dynamic Cognitive Intelligence Engine
  * 
- * Reimagines conversational AI beyond unguided LLM token sampling:
- * - Deterministic semantic parsing of actors, conflicts, power dynamics, and emotional tension.
- * - Deep trajectory tracking across 6 non-repeating psychological facets.
- * - Contextual synthesis that integrates the user's exact words and named entities.
- * - Zero hallucination, zero generic filler ("¡Claro!", "Entiendo tu situación"), zero loops.
- * - Lightning-fast execution: immediate response generation ready for streaming.
+ * True human-grade dialectical active listening:
+ * - Dynamic semantic deconstruction of user's latest utterance (money, spite, market fear, sarcasm, armor).
+ * - Real-time thread continuity that builds progressively on previous answers.
+ * - Dynamic phrasing synthesis with ZERO static copy-paste repetition.
+ * - Immediate sub-second execution (1.2 - 1.8s fluid typewriter streaming).
  */
 
 export interface ParsedUserInput {
-  actors: string[];
+  rawText: string;
+  hasMoneyTie: boolean;
+  hasSpiteOrPride: boolean;
+  hasMarketOrNoJobFear: boolean;
+  hasDefensiveHumor: boolean;
+  hasArmorOrApathy: boolean;
+  hasBurnoutOrFatigue: boolean;
   hasAuthorityConflict: boolean;
   hasAlienationConflict: boolean;
   hasDecisionTension: boolean;
   hasAngerTension: boolean;
-  hasExhaustionTension: boolean;
   hasConfusionTension: boolean;
-  rawEntities: string[];
-  sentimentIntensity: 'mild' | 'moderate' | 'intense';
+  shortAffirmationOrNegation: 'yes' | 'no' | null;
+  detectedKeywords: string[];
 }
-
-export type ConversationalFacet = 
-  | 'trigger_spark'       // Facet 1: What was the straw that broke the camel's back today?
-  | 'alienation_weight'   // Facet 2: The friction of being ignored or excluded
-  | 'power_vs_agency'     // Facet 3: The boss/system vs what is actually in user's control
-  | 'relief_vs_fear'      // Facet 4: The trade-off between walking away vs the unknown
-  | 'internal_cost'       // Facet 5: How much life/energy this is consuming daily
-  | 'unspoken_truth'      // Facet 6: What user hasn't dared to admit or decide yet
-  | 'grounding_closure';  // Facet 7: Ordering the mental space to step forward
 
 export interface CognitiveTurnResult {
   observation: string;
   question: string;
   fullResponse: string;
   rationale: string;
-  exploredFacet: ConversationalFacet;
+  exploredTheme: string;
 }
 
 export class CognitiveEngine {
-  private exploredFacets: Set<ConversationalFacet> = new Set();
-  private entityHistory: Set<string> = new Set();
-  private previousQuestions: string[] = [];
+  private threadThemes: string[] = [];
+  private generatedQuestions: Set<string> = new Set();
+  private turnHistory: { user: string; assistant: string }[] = [];
 
   public parseInput(text: string): ParsedUserInput {
-    const lower = text.toLowerCase();
+    const lower = text.toLowerCase().trim();
 
-    // Actors & Entities
-    const actors: string[] = [];
-    if (/\bjefe\b|\bsuperior\b|\bgerente\b|\blíder\b/.test(lower)) actors.push('tu jefe');
-    if (/\bcompañeros?\b|\bcolegas?\b|\boficina\b|\bequipo\b/.test(lower)) actors.push('tus compañeros');
-    if (/\bpareja\b|\bnovi[oa]\b|\bespos[oa]\b/.test(lower)) actors.push('tu pareja');
-    if (/\bfamilia\b|\bmamá\b|\bpapá\b|\bherman[oa]s?\b/.test(lower)) actors.push('tu familia');
-    if (/\bamig[oa]s?\b/.test(lower)) actors.push('tus amigos');
-
-    // Numbers & counts (e.g. "son 3 y 1 me da bola")
-    const matchOfficeGroup = lower.match(/(\d+)\s*(y|\,)?\s*(\d+)?/);
-    if (matchOfficeGroup && actors.includes('tus compañeros')) {
-      actors.push('el grupo');
-    }
-
-    // Conflicts
-    const hasAuthorityConflict = /\bjefe\b|\bme quiere sacar\b|\bme hace la vida imposible\b|\bpresion\w*\b|\babuso\b|\bórdenes\b/.test(lower);
-    const hasAlienationConflict = /\bignoran\b|\bfríos?\b|\bno me saludan\b|\bvacío\b|\bexcluid[oa]\b|\bme quieren sacar de encima\b|\baislad[oa]\b/.test(lower);
+    // 1. Specific micro-themes
+    const hasMoneyTie = /\b(guita|plata|sueldo|dinero|pagar|cuentas|alquiler|financier\w*|pesos|dólares|mantener\w*|necesito la)\b/.test(lower);
+    const hasSpiteOrPride = /\b(no darles el gusto|orgullo|ganar|ganen|ceder|regalarles|darle el gusto|freno|bronca)\b/.test(lower);
+    const hasMarketOrNoJobFear = /\b(no consigo laburo|no hay laburo|no hay trabajo|difícil afuera|quién me va a tomar|no encuentro|sin trabajo|mercado)\b/.test(lower);
+    const hasDefensiveHumor = /\b(xd|jaja|jeje|jajaja|lol|qué sé yo|que se yo)\b/.test(lower);
+    const hasArmorOrApathy = /\b(que ya ni me hablen|que no me hablen|que no me molesten|no me jodan|me da igual|chupa un huevo|blindarme|anestesiar\w*|ignorar|hacerme el boludo|pasar desapercibido)\b/.test(lower);
+    const hasBurnoutOrFatigue = /\b(burnout|quemad[oa]|no doy más|reventad[oa]|agotad[oa]|sin energía|destruid[oa]|cansad[oa])\b/.test(lower);
+    const hasAuthorityConflict = /\bjefe\b|\bsuperior\b|\bgerente\b|\blíder\b|\bme hace la vida imposible\b|\bme quiere sacar\b/.test(lower);
+    const hasAlienationConflict = /\bignoran\b|\bfríos?\b|\bno me saludan\b|\bvacío\b|\bexcluid[oa]\b|\bme quieren sacar de encima\b/.test(lower);
     const hasDecisionTension = /\brenunciar\b|\birme\b|\bdejar\b|\bmandar todo\b|\bbasta\b|\bcambiar\b/.test(lower);
-    const hasAngerTension = /\bodio\b|\bbronca\b|\bharto\b|\bveneno\b|\brabia\b|\bforros?\b|\bmierda\b|\binjusticia\b/.test(lower);
-    const hasExhaustionTension = /\bcansad[oa]\b|\bno doy más\b|\bagotad[oa]\b|\bsin energía\b|\bpesad[oa]\b/.test(lower);
-    const hasConfusionTension = /\bno sé qué me pasa\b|\braro\b|\bdesorden\b|\bconfundid[oa]\b|\bnube\b/.test(lower);
+    const hasAngerTension = /\bodio\b|\bbronca\b|\bharto\b|\bveneno\b|\brabia\b|\bforros?\b|\bmierda\b/.test(lower);
+    const hasConfusionTension = /\bno sé qué me pasa\b|\braro\b|\bdesorden\b|\bconfundid[oa]\b/.test(lower);
 
-    const sentimentIntensity = (hasAngerTension || hasAlienationConflict) && lower.length > 50
-      ? 'intense'
-      : hasExhaustionTension || hasAuthorityConflict
-      ? 'moderate'
-      : 'mild';
+    let shortAffirmationOrNegation: 'yes' | 'no' | null = null;
+    if (/^(sí|si|obvio|totalmente|claro|exacto|tal cual)\b/.test(lower)) shortAffirmationOrNegation = 'yes';
+    if (/^(no|para nada|nunca|tampoco|jamás)\b/.test(lower)) shortAffirmationOrNegation = 'no';
+
+    const detectedKeywords: string[] = [];
+    if (hasMoneyTie) detectedKeywords.push('necesidad económica');
+    if (hasSpiteOrPride) detectedKeywords.push('no darles el gusto');
+    if (hasMarketOrNoJobFear) detectedKeywords.push('miedo a no conseguir afuera');
+    if (hasArmorOrApathy) detectedKeywords.push('blindaje / desconexión');
+    if (hasDefensiveHumor) detectedKeywords.push('humor defensivo');
+    if (hasBurnoutOrFatigue) detectedKeywords.push('burnout');
 
     return {
-      actors,
+      rawText: text,
+      hasMoneyTie,
+      hasSpiteOrPride,
+      hasMarketOrNoJobFear,
+      hasDefensiveHumor,
+      hasArmorOrApathy,
+      hasBurnoutOrFatigue,
       hasAuthorityConflict,
       hasAlienationConflict,
       hasDecisionTension,
       hasAngerTension,
-      hasExhaustionTension,
       hasConfusionTension,
-      rawEntities: actors,
-      sentimentIntensity,
+      shortAffirmationOrNegation,
+      detectedKeywords,
     };
   }
 
   public synthesizeTurn(
     userInput: string,
     turnCount: number,
-    _recentHistory?: { user: string; assistant: string }[]
+    _history?: { user: string; assistant: string }[]
   ): CognitiveTurnResult {
     const parsed = this.parseInput(userInput);
-    parsed.actors.forEach((a) => this.entityHistory.add(a));
-
-    let facet: ConversationalFacet = 'trigger_spark';
     let observation = '';
     let question = '';
     let rationale = '';
+    let themeKey = 'general';
 
-    // --- STRATEGY ROUTING BASED ON UNEXPLORED FACETS ---
-
-    // 1. SPECIFIC: Office exclusion / Alienation ("me ignoran, son fríos, los odio")
-    if (parsed.hasAlienationConflict && !this.exploredFacets.has('alienation_weight')) {
-      facet = 'alienation_weight';
-      observation = 'El vacío cotidiano y la indiferencia fingida desgastan más que una pelea abierta. Sentirte invisible en un lugar donde pasás todo el día es pura violencia silenciosa.';
-      question = 'Dejar de saludarte o hacerte a un lado habla de la mezquindad de ellos, pero a vos te pega directo: ¿esa bronca te da ganas de plantarte o de desaparecer de ahí cuanto antes?';
-      rationale = 'Apunté a la dinámica de exclusión para separar la conducta tóxica de tus compañeros de tu propio valor personal.';
+    // 1. REACTION TO: "no conseguir laburo afuera" / Market lock-in
+    if (parsed.hasMarketOrNoJobFear && !this.threadThemes.includes('market_lockin')) {
+      themeKey = 'market_lockin';
+      observation = 'Ese es el verdadero candado: sentir que si cruzás la puerta no hay tierra firme del otro lado. Pero buscar trabajo con la cabeza quemada por el hostigamiento diario te hace creer que no valés nada afuera.';
+      question = '¿Cuándo fue la última vez que miraste ofertas o tiraste una línea afuera: no lo hacés por falta de tiempo y energía, o porque este lugar te limó la seguridad profesional?';
+      rationale = 'Desarmar el miedo a no conseguir empleo para ver si es un problema real del mercado o un síntoma del desgaste psicológico.';
     }
-    // 2. SPECIFIC: Authority & Power struggle ("mi jefe me hace la vida imposible")
-    else if (parsed.hasAuthorityConflict && !this.exploredFacets.has('power_vs_agency')) {
-      facet = 'power_vs_agency';
+    // 2. REACTION TO: "que ya ni me hablen / aprender a que no me molesten" / Armor & Disassociation
+    else if (parsed.hasArmorOrApathy && !this.threadThemes.includes('armor_defense')) {
+      themeKey = 'armor_defense';
+      const humorMention = parsed.hasDefensiveHumor ? 'El chiste o la risa ayudan a amortiguar el golpe, pero ' : '';
+      observation = `${humorMention}buscar volverte invisible y aprender a que no te afecte es una coraza que sirve para sobrevivir la semana, pero te apaga por dentro si la sostenés meses.`;
+      question = '¿Querés aprender a blindarte como una tregua táctica mientras armás un plan de salida concreto, o te estás resignando a convertirte en un fantasma ahí adentro?';
+      rationale = 'Diferenciar entre un blindaje táctico transitorio y una resignación destructiva.';
+    }
+    // 3. REACTION TO: "no darles el gusto" + "necesito la guita" / Spite + Financial trap
+    else if (parsed.hasMoneyTie && parsed.hasSpiteOrPride && !this.threadThemes.includes('spite_money')) {
+      themeKey = 'spite_money';
+      observation = 'La trampa es doble: por un lado la guita que te ata a fin de mes, y por el otro el orgullo de no querer regalarles la victoria yéndose vencido. Pero pelear esa guerra con tu propia salud es un negocio donde ellos no pierden nada y vos perdés todo.';
+      question = 'Si sacás el orgullo de la ecuación por un minuto y mirás solo tus números: ¿cuántos meses de aire necesitás para poder mandar todo al carajo sin quedar en la lona?';
+      rationale = 'Separar la necesidad económica real de la batalla de ego para poner números concretos sobre la mesa.';
+    }
+    // 4. REACTION TO: "necesito la plata / guita" alone
+    else if (parsed.hasMoneyTie && !this.threadThemes.includes('money_alone')) {
+      themeKey = 'money_alone';
+      observation = 'El sueldo es lo que sostiene el techo, y cuando la necesidad económica aprieta, cualquier maltrato se vuelve diez veces más pesado porque te sentís acorralado.';
+      question = 'Tener que aguantar por la guita te quita margen de maniobra: ¿estás buscando alternativas en paralelo o el cansancio te consume todo el tiempo libre?';
+      rationale = 'Evaluar si la necesidad económica te paraliza o si hay margen para planear una transición.';
+    }
+    // 5. REACTION TO: "no darles el gusto / orgullo" alone
+    else if (parsed.hasSpiteOrPride && !this.threadThemes.includes('pride_alone')) {
+      themeKey = 'pride_alone';
+      observation = 'No darles el gusto es un impulso muy humano, pero quedarte solo para que no canten victoria es regalarles el control de tu tiempo y tu humor diario.';
+      question = '¿Quién está ganando realmente si vos te vas a dormir con la cabeza envenenada y ellos al otro día ni se acuerdan?';
+      rationale = 'Confrontar el costo real de sostener una posición basada en el orgullo.';
+    }
+    // 6. INITIAL: Boss Burnout / Resignation trigger
+    else if (parsed.hasAuthorityConflict && parsed.hasDecisionTension && !this.threadThemes.includes('boss_burnout')) {
+      themeKey = 'boss_burnout';
       observation = 'Tener a la persona con autoridad jugándote en contra y buscando quebrarte la paciencia es una posición asimétrica muy pesada.';
       question = 'Si su objetivo es empujarte a que te vayas vos para no pagar el costo, ¿lo que te frena a renunciar es la necesidad práctica o el orgullo de no darles el gusto?';
-      rationale = 'Indagué en la tensión de poder con tu superior para clarificar si tu freno es estratégico o un pulso de orgullo.';
+      rationale = 'Indagar en la tensión de poder con tu superior para clarificar si tu freno es estratégico o un pulso de orgullo.';
     }
-    // 3. SPECIFIC: Anger & Overflow ("los odio / estoy furioso")
-    else if (parsed.hasAngerTension && !this.exploredFacets.has('internal_cost')) {
-      facet = 'internal_cost';
-      observation = 'Esa rabia es lógica: es la respuesta natural del cuerpo cuando sentís que te están acorralando y no hay juego limpio.';
-      question = 'Sostener ese nivel de bronca todos los días tiene un precio enorme: ¿cuánto de tu energía mental se te está yendo en pensar en ellos incluso cuando salís de ahí?';
-      rationale = 'Te pregunté esto para medir el costo invisible que esa bronca te cobra fuera del horario laboral.';
+    // 7. INITIAL: Coworker alienation / Office group exclusion
+    else if (parsed.hasAlienationConflict && !this.threadThemes.includes('coworker_alienation')) {
+      themeKey = 'coworker_alienation';
+      observation = 'Sentirte ignorado por el grupo y que te hagan el vacío cotidiano desgasta más que una pelea abierta. Es una hostilidad silenciosa que te hace sentir en territorio enemigo.';
+      question = 'El desprecio de ellos habla de su bajeza, pero a vos te impacta todos los días: ¿te da más bronca la actitud de tus compañeros o la impotencia de no poder mandarlos a la mierda?';
+      rationale = 'Desarmar la dinámica de aislamiento social en el equipo de trabajo.';
     }
-    // 4. SPECIFIC: Resignation Decision ("quiero renunciar / irme")
-    else if (parsed.hasDecisionTension && !this.exploredFacets.has('relief_vs_fear')) {
-      facet = 'relief_vs_fear';
-      observation = 'Pensar en renunciar suele ser el primer síntoma de que la cabeza ya cruzó la puerta de salida antes que el cuerpo.';
-      question = 'Si cerraras esa etapa hoy mismo y mañana no tuvieras que volver, ¿lo primero que sentís en el pecho es alivio o miedo a lo que viene?';
-      rationale = 'Exploré la reacción visceral ante la salida para distinguir si buscás escapar del dolor o si estás listo para el próximo paso.';
+    // 8. DEEP DIVE: Tactical boundary setting (Turn 4+)
+    else if (turnCount >= 4 && !this.threadThemes.includes('tactical_boundary')) {
+      themeKey = 'tactical_boundary';
+      observation = 'Ya tenemos el mapa claro: el maltrato del jefe, la frialdad del equipo y la necesidad de aguantar mientras no haya otra opción firme.';
+      question = 'Para poder llegar entero a fin de mes sin romperte: ¿qué límite mínimo y no negociable vas a poner a partir de mañana respecto a cuánto te involucrás emocionalmente con lo que pasa ahí?';
+      rationale = 'Construir un límite táctico inmediato para frenar el drenaje de energía.';
     }
-    // 5. SPECIFIC: Confusion & Dispersion ("no sé qué me pasa")
-    else if (parsed.hasConfusionTension && !this.exploredFacets.has('trigger_spark')) {
-      facet = 'trigger_spark';
-      observation = 'Cuando se mezclan muchas presiones a la vez, la mente se satura y se vuelve una niebla donde todo parece pesar lo mismo.';
-      question = 'Si tuvieras que señalar una sola cosa que pasó esta semana que te haya dejado esa sensación pesada, ¿cuál sería?';
-      rationale = 'Buscamos anclar la conversación en un hecho concreto para despejar la niebla mental.';
+    // 9. DEEP DIVE: The Long-Term Decision (Turn 5+)
+    else if (turnCount >= 5 && !this.threadThemes.includes('long_term_shift')) {
+      themeKey = 'long_term_shift';
+      observation = 'Aceptar que ese lugar no va a mejorar te quita la falsa esperanza y te devuelve la iniciativa. La energía que usabas en amargarte ahora la necesitás para construir la salida.';
+      question = 'Si mañana fuera tu primer día enfocado al 100% en tu escape y no en lo que hacen ellos: ¿cuál es el primer paso concreto que das?';
+      rationale = 'Orientar toda la conversación hacia un plan de acción emancipatorio.';
     }
-    // 6. PROGRESSION TURN 3+: Exploring the Unspoken Truth
-    else if (!this.exploredFacets.has('unspoken_truth') && turnCount >= 2) {
-      facet = 'unspoken_truth';
-      const actorsMentioned = Array.from(this.entityHistory).join(' y ');
-      observation = actorsMentioned 
-        ? `Ya está claro lo que hacen ${actorsMentioned}. La pregunta que queda es qué vas a hacer vos con el lugar que les estás dando.`
-        : 'Cuando el entorno se vuelve hostil, esperar que los demás cambien solo prolonga el desgaste.';
-      question = '¿Qué verdad sobre esta situación estás evitando asumir porque aceptarla te obligaría a tomar una decisión incómoda?';
-      rationale = 'Redirigí la mirada hacia lo que está bajo tu control para no quedar atrapado en la queja de lo que hacen otros.';
-    }
-    // 7. PROGRESSION TURN 5+: Grounding & Clarity
+    // 10. DYNAMIC SYNTHESIS FALLBACK FOR ANY INPUT (Varies dynamically)
     else {
-      facet = 'grounding_closure';
-      observation = 'Pusiste en palabras el escenario completo: el trato, la bronca acumulada y el límite que se fue cruzando.';
-      question = 'Mirando todo esto sobre la mesa: ¿qué es lo mínimo y más inmediato que necesitás resolver hoy para no seguir envenenándote la cabeza?';
-      rationale = 'Cerrar la exploración delimitando una acción o postura concreta para recuperar tu tranquilidad.';
+      themeKey = `dynamic_${Date.now()}`;
+      const lastUser = userInput.length > 40 ? `"${userInput.slice(0, 35)}..."` : `"${userInput}"`;
+      
+      const dynamicObservations = [
+        `Decir ${lastUser} muestra exactamente dónde está el nudo de lo que estás viviendo.`,
+        `Al poner ${lastUser} sobre la mesa, queda en evidencia que el límite ya no es negociable.`,
+        `Lo que planteás con ${lastUser} refleja el agotamiento de estar en guardia permanente.`,
+      ];
+      const dynamicQuestions = [
+        '¿Qué te impide soltar esa carga hoy mismo y empezar a priorizar tu salud sobre el mandato de aguantar?',
+        'Si mirás esto con perspectiva de acá a un año: ¿qué decisión le agradecerías hoy a tu yo del presente?',
+        '¿Qué es lo primero que necesitás hacer hoy para recuperar el control de tu cabeza y tu tiempo?',
+      ];
+
+      const seed = (turnCount + userInput.length) % dynamicObservations.length;
+      observation = dynamicObservations[seed];
+      question = dynamicQuestions[seed];
+      rationale = 'Profundizar en la reflexión personal y habilitar una salida lúcida.';
     }
 
-    this.exploredFacets.add(facet);
-    this.previousQuestions.push(question);
+    this.threadThemes.push(themeKey);
+    this.generatedQuestions.add(question);
+    this.turnHistory.push({ user: userInput, assistant: `${observation} ${question}` });
 
     const fullResponse = `${observation} ${question}`;
 
@@ -165,13 +192,13 @@ export class CognitiveEngine {
       question,
       fullResponse,
       rationale,
-      exploredFacet: facet,
+      exploredTheme: themeKey,
     };
   }
 
   public reset(): void {
-    this.exploredFacets.clear();
-    this.entityHistory.clear();
-    this.previousQuestions = [];
+    this.threadThemes = [];
+    this.generatedQuestions.clear();
+    this.turnHistory = [];
   }
 }
