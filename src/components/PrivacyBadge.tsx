@@ -1,7 +1,7 @@
 /**
  * SAMUEL - Privacy Badge Component
  * 
- * Discrete, persistent privacy status indicator.
+ * Exclusive, glowing privacy indicator tailored for lukson.arts visual universe.
  */
 
 import React from 'react';
@@ -17,20 +17,20 @@ export const PrivacyBadge: React.FC<PrivacyBadgeProps> = ({ onClick, isOfflineRe
   return (
     <button
       onClick={onClick}
-      className="group inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/40 border border-emerald-800/40 text-emerald-300/90 hover:bg-emerald-900/40 hover:border-emerald-700/60 transition-all cursor-pointer select-none"
+      className="group relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium bg-neutral-950/80 border border-violet-500/30 text-violet-200/90 hover:text-white hover:border-violet-400/60 shadow-[0_0_15px_rgba(139,92,246,0.12)] hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all cursor-pointer select-none backdrop-blur-md"
       title="Hacé clic para ver cómo funciona la privacidad en Samuel"
     >
       <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-400"></span>
       </span>
-      <span>{REGULATORY_CONFIG.privacyStatement.badgeText}</span>
+      <span className="tracking-wide">{REGULATORY_CONFIG.privacyStatement.badgeText}</span>
       {isOfflineReady && (
-        <span className="text-[10px] text-emerald-400/70 border-l border-emerald-700/50 pl-2">
-          Offline listo
+        <span className="text-[10px] text-blue-300/80 border-l border-violet-700/50 pl-2 font-mono">
+          Offline
         </span>
       )}
-      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+      <ShieldCheck className="w-3.5 h-3.5 text-violet-400 group-hover:scale-110 transition-transform" />
     </button>
   );
 };

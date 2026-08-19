@@ -51,14 +51,14 @@ export class SamuelEngine {
    * Prepares the turn plan before executing local LLM inference.
    */
   public prepareTurn(userInput: string, jurisdictionCode: string = 'AR'): EngineTurnPlan {
-    // 1. Safety check
+    // 1. Safety check (local deterministic check for extreme self-harm)
     const safetyCheck = this.safetyLayer.evaluateUserInput(userInput, jurisdictionCode);
     if (!safetyCheck.isSafeToProceed) {
       return {
         safetyCheck,
         systemPrompt: '',
         messagesForLLM: [],
-        rationale: 'Intervención preventiva de seguridad ante señales de riesgo.',
+        rationale: 'Intervención preventiva de seguridad ante señales explícitas de riesgo.',
         maxTokens: 120,
       };
     }
@@ -84,15 +84,22 @@ export class SamuelEngine {
     const rationale = this.explainabilityEngine.generateRationale(strategy, contradiction, userInput);
 
     // 6. Build the System Instruction
-    const systemPrompt = this.buildSystemPrompt(strategy.recommendedAngle, depthGuideline.toneGuidance, contradiction.detected ? contradiction.observationPhrase : undefined);
+    const systemPrompt = this.buildSystemPrompt(
+      strategy.recommendedAngle,
+      depthGuideline.toneGuidance,
+      contradiction.detected ? contradiction.observationPhrase : undefined
+    );
 
-    // 7. Assemble conversation messages (keep recent context clean, max 8 turns to preserve WebGPU context window)
-    const recentMessages = this.state.getMessages().slice(-10);
+    // 7. Assemble conversation messages (recent 6 messages max to maximize TTFT and speed)
+    const recentMessages = this.state.getMessages().slice(-6);
     const messagesForLLM: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
       ...recentMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content: userInput },
     ];
+
+    // Cap max tokens tightly (45-90 tokens max) to guarantee fast generation under 2-3s
+    const maxTokens = Math.min(90, Math.max(35, depthGuideline.maxWords * 2));
 
     return {
       safetyCheck,
@@ -100,23 +107,22 @@ export class SamuelEngine {
       messagesForLLM,
       rationale,
       detectedContradiction: contradiction.detected ? contradiction.observationPhrase : undefined,
-      maxTokens: Math.max(80, Math.min(250, depthGuideline.maxWords * 2)),
+      maxTokens,
     };
   }
 
   private buildSystemPrompt(angleDirective: string, depthGuidance: string, contradictionHint?: string): string {
-    return `Sos SAMUEL, un espacio sobrio y privado para que una persona pueda hablar, ordenar ideas y explorar lo que le pasa.
+    return `Sos SAMUEL, un interlocutor sobrio, lúcido y directo. No sos un bot genérico ni un asistente corporativo.
 
-REGLAS ABSOLUTAS:
-1. NO sos psicólogo, terapeuta ni médico. No hacés diagnósticos ni das consejos prefabricados.
-2. NO uses frases vacías de falsa empatía como "Entiendo cómo te sentís", "Es completamente válido", "Estoy aquí para vos", "Contame más".
-3. Escuchá con atención. Hacé preguntas que vayan al núcleo o ayuden a pensar.
-4. Distinguí los hechos de las interpretaciones. Si el usuario habla mucho de los demás, llevalo suavemente a qué desea o qué lugar ocupa él/ella.
-5. ${depthGuidance}
-6. Enfoque para esta respuesta: ${angleDirective}
-${contradictionHint ? `7. Observación de contradicción a considerar con delicadeza: "${contradictionHint}"` : ''}
-
-Respondé con naturalidad, honestidad y concisión.`;
+REGLAS DE ORO:
+1. Hablá con naturalidad, en español directo y honesto.
+2. NO des consejos prefabricados, NO des listas con números (1, 2, 3...) ni digas "Aquí hay algunas opciones".
+3. NUNCA inventes números de emergencia (112, 130, 911, etc.) ni asumas crisis médica ante expresiones comunes como "quiero renunciar", "estoy harto", "estoy cansado".
+4. NO uses frases vacías ("Entiendo cómo te sentís", "Es completamente válido", "Lamento mucho").
+5. Respondé en 1 o 2 oraciones BREVES y hacé una sola pregunta que vaya directo al hueso del asunto.
+6. ${depthGuidance}
+7. Objetivo en esta respuesta: ${angleDirective}
+${contradictionHint ? `8. Tensión observada: "${contradictionHint}"` : ''}`;
   }
 
   public registerTurnOutput(

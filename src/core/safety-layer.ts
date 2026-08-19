@@ -81,6 +81,9 @@ export class SafetyLayer {
 
     // Remove canned empty empathy clichés if at start of response
     const cannedOpeners = [
+      /^lo siento, pero parece que estás experimentando.*?\n+/is,
+      /^si te sientes abrumado o no sabes qué hacer.*?\n+/is,
+      /^aquí hay algunas opciones:.*?\n+/is,
       /^entiendo perfectamente cómo te sentís\.?\s*/i,
       /^es completamente válido sentirse así\.?\s*/i,
       /^lamento mucho que estés pasando por esto\.?\s*/i,
