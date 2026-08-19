@@ -1,7 +1,7 @@
 /**
  * SAMUEL - Main Application Root
  * 
- * Orchestrates Socratic Problem-Solving Engine, Privacy Auditor,
+ * Orchestrates Stateful Dialectical Dialogue Engine, Privacy Auditor,
  * and the sanctuary user interface.
  */
 
@@ -69,9 +69,9 @@ export const App: React.FC = () => {
   }, []);
 
   /**
-   * Fluid typewriter streamer for instant high-craft Socratic problem-solving
+   * Fluid typewriter streamer for instant human-grade dialectical dialogue
    */
-  const streamSocraticResponse = useCallback(
+  const streamDialogueResponse = useCallback(
     async (
       targetText: string,
       assistantMsgId: string,
@@ -92,8 +92,8 @@ export const App: React.FC = () => {
               : msg
           )
         );
-        // 25ms organic pause per word (~40 words per second)
-        await new Promise((res) => setTimeout(res, 25));
+        // 24ms organic pause per word (~42 words per second)
+        await new Promise((res) => setTimeout(res, 24));
       }
 
       const totalTimeMs = Math.round(performance.now() - startTime);
@@ -176,10 +176,10 @@ export const App: React.FC = () => {
 
       setMessages((prev) => [...prev, placeholderMsg]);
 
-      // 4. Instant Socratic Problem Solving Stream
-      if (turnPlan.socraticResult?.fullResponse) {
-        await streamSocraticResponse(
-          turnPlan.socraticResult.fullResponse,
+      // 4. Instant Stateful Dialectical Stream
+      if (turnPlan.dialogueResult?.fullResponse) {
+        await streamDialogueResponse(
+          turnPlan.dialogueResult.fullResponse,
           assistantMsgId,
           userText,
           turnPlan.rationale,
@@ -188,7 +188,7 @@ export const App: React.FC = () => {
         return;
       }
     },
-    [engineState.status, jurisdiction, samuelEngine, streamSocraticResponse]
+    [engineState.status, jurisdiction, samuelEngine, streamDialogueResponse]
   );
 
   const handleInterrupt = useCallback(() => {
@@ -210,7 +210,7 @@ export const App: React.FC = () => {
       <div className="min-h-screen bg-neutral-950 text-neutral-200 flex items-center justify-center p-6">
         <div className="text-center space-y-3 font-mono text-xs text-neutral-400">
           <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p>Iniciando entorno local de alta precisión...</p>
+          <p>Iniciando santuario local...</p>
         </div>
       </div>
     );
@@ -244,15 +244,15 @@ export const App: React.FC = () => {
         hasMessages={messages.length > 0}
         isOfflineReady={true}
         currentModel={{
-          id: 'samuel-socratic-engine',
-          name: 'SAMUEL Socratic Core',
+          id: 'samuel-dialogue-engine',
+          name: 'SAMUEL Dialectic Core',
           family: 'SAMUEL AI',
-          parameterSize: 'Matrix Engine',
+          parameterSize: 'Universal',
           quantization: 'int8',
           downloadSizeMB: 0,
           vramEstimatedMB: 150,
           contextWindow: 4096,
-          description: 'Motor socrático de resolución de dilemas en tiempo real',
+          description: 'Motor dialéctico de escucha activa y resolución socrática en tiempo real',
           tier: 'recommended',
           languages: ['es'],
         }}

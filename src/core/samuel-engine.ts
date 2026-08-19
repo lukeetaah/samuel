@@ -1,14 +1,12 @@
 /**
- * SAMUEL CORE - Master Socratic Engine
+ * SAMUEL CORE - Master Dialogue Orchestrator
  * 
- * Orchestrates high-craft Socratic problem-solving with instant execution:
- * - Solves real dilemmas (salary vs workload, coping with hated jobs, fear of travel, burnout, relationships).
- * - Zero hallucination, zero broken Spanish, zero robotic clichés.
- * - Sub-second execution with fluid typewriter streaming.
+ * Delivers deep multi-turn conversational intelligence, active listening,
+ * stateful dialectic continuity, and zero repetitive loops.
  */
 
 import { ConversationState } from './conversation-state';
-import { SocraticSolver, SocraticTurnResult } from './socratic-solver';
+import { DialogueEngine, DialogueTurnResult } from './dialogue-engine';
 import { QuestionStrategy } from './question-strategy';
 import { ContradictionDetector } from './contradiction';
 import { DepthControl } from './depth-control';
@@ -23,12 +21,12 @@ export interface EngineTurnPlan {
   rationale: string;
   detectedContradiction?: string;
   maxTokens: number;
-  socraticResult?: SocraticTurnResult;
+  dialogueResult?: DialogueTurnResult;
 }
 
 export class SamuelEngine {
   private state: ConversationState;
-  private socraticSolver: SocraticSolver;
+  private dialogueEngine: DialogueEngine;
   private questionStrategy: QuestionStrategy;
   private contradictionDetector: ContradictionDetector;
   private depthControl: DepthControl;
@@ -37,7 +35,7 @@ export class SamuelEngine {
 
   constructor() {
     this.state = new ConversationState();
-    this.socraticSolver = new SocraticSolver();
+    this.dialogueEngine = new DialogueEngine();
     this.questionStrategy = new QuestionStrategy();
     this.contradictionDetector = new ContradictionDetector();
     this.depthControl = new DepthControl();
@@ -53,8 +51,8 @@ export class SamuelEngine {
     return this.safetyLayer;
   }
 
-  public getSocraticSolver(): SocraticSolver {
-    return this.socraticSolver;
+  public getDialogueEngine(): DialogueEngine {
+    return this.dialogueEngine;
   }
 
   public getQuestionStrategy(): QuestionStrategy {
@@ -70,7 +68,7 @@ export class SamuelEngine {
   }
 
   /**
-   * Prepares the turn plan with high-craft Socratic problem solving.
+   * Prepares the turn plan with stateful multi-turn dialectical intelligence.
    */
   public prepareTurn(userInput: string, jurisdictionCode: string = 'AR'): EngineTurnPlan {
     // 1. Safety check (local deterministic check for extreme self-harm)
@@ -88,8 +86,8 @@ export class SamuelEngine {
     const turns = this.state.getTurns();
     const currentTurnIndex = turns.length + 1;
 
-    // 2. High-precision Socratic Problem-Solving Synthesis
-    const socraticResult = this.socraticSolver.solve(userInput, currentTurnIndex);
+    // 2. High-precision Multi-Turn Dialectical Synthesis
+    const dialogueResult = this.dialogueEngine.processTurn(userInput, currentTurnIndex);
 
     // 3. Contradiction analysis
     const turnsHistoryText = turns.map(t => `U: ${t.userMessage} | S: ${t.assistantResponse}`).join(' ');
@@ -102,7 +100,7 @@ export class SamuelEngine {
     // 4. Few-shot system prompt for neural inference
     const systemPrompt = `Sos SAMUEL. Respondé exactamente con este calibre de sobriedad y profundidad:
 U: ${userInput}
-S: ${socraticResult.fullResponse}`;
+S: ${dialogueResult.fullResponse}`;
 
     const recentMessages = this.state.getMessages().slice(-2);
     const messagesForLLM: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
@@ -115,10 +113,10 @@ S: ${socraticResult.fullResponse}`;
       safetyCheck,
       systemPrompt,
       messagesForLLM,
-      rationale: socraticResult.rationale,
+      rationale: dialogueResult.rationale,
       detectedContradiction: contradiction.detected ? contradiction.observationPhrase : undefined,
       maxTokens: 75,
-      socraticResult,
+      dialogueResult,
     };
   }
 
@@ -142,6 +140,6 @@ S: ${socraticResult.fullResponse}`;
 
   public resetSession(): void {
     this.state.clear();
-    this.socraticSolver.reset();
+    this.dialogueEngine.reset();
   }
 }
