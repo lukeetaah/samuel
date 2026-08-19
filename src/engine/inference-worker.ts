@@ -3,6 +3,7 @@
  * 
  * Runs local LLM inference in a dedicated background thread to keep
  * the UI silky smooth, fully interactive, and 60fps responsive.
+ * Equipped with repetition and presence penalties to stop hallucination loops.
  */
 
 import { MLCEngine, InitProgressReport } from '@mlc-ai/web-llm';
@@ -75,9 +76,13 @@ self.onmessage = async (event: MessageEvent) => {
       try {
         const stream = await engine.chat.completions.create({
           messages: messages,
-          temperature: options?.temperature ?? 0.5,
-          top_p: options?.topP ?? 0.8,
-          max_tokens: options?.maxTokens ?? 50,
+          temperature: options?.temperature ?? 0.65,
+          top_p: options?.topP ?? 0.85,
+          max_tokens: options?.maxTokens ?? 65,
+          repetition_penalty: 1.25,
+          presence_penalty: 0.5,
+          frequency_penalty: 0.3,
+          stop: ['\nUsuario:', '\nUser:', 'Usuario:', '\n\n\n'],
           stream: true,
           stream_options: { include_usage: true },
         });

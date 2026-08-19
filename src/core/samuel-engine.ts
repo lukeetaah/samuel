@@ -1,8 +1,10 @@
 /**
  * SAMUEL CORE - Master Engine & Prompt Orchestrator
  * 
- * OPTIMIZED FOR SPEED: Ultra-compact system prompt (~40 tokens),
- * minimal history (last 2 messages), tight token cap.
+ * High-performance conversational orchestrator:
+ * - Few-shot style grounding for sub-2B models (Matrix/Oracle vibe: concise, piercing, no clichés).
+ * - Repetition prevention and tight token budgeting.
+ * - Minimal context overhead to maximize TTFT speed.
  */
 
 import { ConversationState } from './conversation-state';
@@ -83,22 +85,22 @@ export class SamuelEngine {
     // 5. Explainability rationale
     const rationale = this.explainabilityEngine.generateRationale(strategy, contradiction, userInput);
 
-    // 6. Build ULTRA-COMPACT system prompt (~40 tokens)
+    // 6. Build Few-Shot grounded system prompt
     const systemPrompt = this.buildSystemPrompt(
       strategy.recommendedAngle,
       contradiction.detected ? contradiction.observationPhrase : undefined
     );
 
-    // 7. Assemble conversation — ONLY last 2 messages to minimize prefill
-    const recentMessages = this.state.getMessages().slice(-2);
+    // 7. Assemble conversation — keep recent 2-4 messages to preserve flow without bloat
+    const recentMessages = this.state.getMessages().slice(-4);
     const messagesForLLM: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
       ...recentMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content: userInput },
     ];
 
-    // Cap max tokens HARD (25-50) for fast generation
-    const maxTokens = Math.min(50, Math.max(25, depthGuideline.maxWords));
+    // Cap max tokens tightly (45-75 tokens) to guarantee snappy generation without cutting off words
+    const maxTokens = Math.min(75, Math.max(40, depthGuideline.maxWords * 2));
 
     return {
       safetyCheck,
@@ -111,12 +113,18 @@ export class SamuelEngine {
   }
 
   private buildSystemPrompt(angle: string, contradictionHint?: string): string {
-    // ULTRA-COMPACT: ~40 tokens total. Every token here = ~0.4s of prefill time.
-    let prompt = `Sos SAMUEL. Hablás español directo, sin frases vacías ni listas. 1-2 oraciones + 1 pregunta breve. ${angle}`;
-    if (contradictionHint) {
-      prompt += ` Tensión: "${contradictionHint}"`;
-    }
-    return prompt;
+    return `Sos SAMUEL, una presencia lúcida y directa para pensar en voz alta. Hablás en español directo sin rodeos.
+Reglas estrictas:
+- NUNCA digas "¡Claro!", "Entiendo tu situación", "Lamento", ni des consejos prefabricados ("has intentado hablar con...").
+- NUNCA repitas frases de turnos anteriores ni hagas listas.
+- Respondé en 1 o 2 oraciones que reconozcan el peso de lo que se dijo y cerrá con 1 sola pregunta incisiva.
+- Ángulo: ${angle}${contradictionHint ? ` | Tensión: "${contradictionHint}"` : ''}
+
+Ejemplos:
+U: quiero renunciar
+S: ¿Qué fue lo que pasó hoy que te hizo decir basta?
+U: mi jefe me hace la vida imposible y mis compañeros me ignoran
+S: Estar en un lugar donde sentís que te quieren afuera agota a cualquiera. Si te vas, ¿lo primero que aparece es alivio o incertidumbre?`;
   }
 
   public registerTurnOutput(

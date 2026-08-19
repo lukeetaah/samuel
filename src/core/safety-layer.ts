@@ -1,11 +1,10 @@
 /**
- * SAMUEL CORE - Safety Layer
+ * SAMUEL CORE - Safety & Sanitization Layer
  * 
- * Enforces strict, local, non-diagnostic boundaries:
- * - Detects potential crisis/self-harm signals with conservative heuristics.
- * - Injects jurisdictional crisis resources gently and respectfully.
- * - Rejects medical diagnostic queries.
- * - Prevents emotional dependency and manipulative expressions.
+ * Enforces strict boundaries and strips all robotic, corporate, and fake-empathy clichés:
+ * - Eliminates "¡Claro!", "Entiendo tu situación", "Lamento mucho", "Por supuesto".
+ * - Prevents repetitive hallucination loops and mid-sentence cutoffs.
+ * - Detects genuine crisis/self-harm signals with conservative heuristics.
  * - Operates strictly client-side with 0 external transmission.
  */
 
@@ -47,7 +46,7 @@ export class SafetyLayer {
         requiresCrisisIntervention: false,
         riskCategory: 'medical_diagnostic_request',
         recommendedResponse:
-          'No puedo darte un diagnóstico médico ni clínico, ya que soy una herramienta de IA conversacional y no un profesional de la salud. Si querés, podemos ordenar qué síntomas o situaciones te están pesando para que puedas llevarle esa descripción clara a un médico o psicólogo.',
+          'No puedo darte un diagnóstico médico ni clínico, ya que soy una herramienta de IA conversacional y no un profesional de la salud. Si querés, podemos ordenar qué situaciones te están pesando para que puedas llevarle esa descripción clara a un profesional.',
       };
     }
 
@@ -58,19 +57,19 @@ export class SafetyLayer {
   }
 
   /**
-   * Post-generation safety filter to sanitize model output and eliminate dependency-inducing phrases.
+   * Post-generation safety filter to sanitize model output and eliminate robotic/filler phrases.
    */
   public sanitizeModelOutput(rawOutput: string): string {
-    let sanitized = rawOutput;
+    let sanitized = rawOutput.trim();
 
-    // Filter manipulative / dependency phrases (Law 5 & Section 15)
+    // Filter manipulative / dependency phrases
     const forbiddenPhrases: [RegExp, string][] = [
       [/soy la única persona que te entiende/gi, 'estoy acá para escucharte'],
       [/soy el único que te entiende/gi, 'estoy acá para escucharte'],
       [/te necesito/gi, 'estamos conversando'],
       [/no quiero que te vayas/gi, 'podés volver cuando quieras'],
       [/somos inseparables/gi, 'podés contar con este espacio'],
-      [/como tu psicólogo/gi, 'como herramienta para pensar'],
+      [/como tu psicólogo/gi, 'como interlocutor'],
       [/como tu terapeuta/gi, 'en esta conversación'],
       [/te diagnostico con/gi, 'lo que describís se relaciona con'],
     ];
@@ -79,21 +78,50 @@ export class SafetyLayer {
       sanitized = sanitized.replace(pattern, replacement);
     }
 
-    // Remove canned empty empathy clichés if at start of response
-    const cannedOpeners = [
-      /^lo siento, pero parece que estás experimentando.*?\n+/is,
-      /^si te sientes abrumado o no sabes qué hacer.*?\n+/is,
-      /^aquí hay algunas opciones:.*?\n+/is,
-      /^entiendo perfectamente cómo te sentís\.?\s*/i,
-      /^es completamente válido sentirse así\.?\s*/i,
-      /^lamento mucho que estés pasando por esto\.?\s*/i,
-      /^estoy aquí para vos\.?\s*/i,
+    // Aggressively strip robotic openers and fake empathy
+    const roboticOpeners = [
+      /^¡?claro!?,?\s*/i,
+      /^¡?por supuesto!?,?\s*/i,
+      /^¡?hola!?,?\s*/i,
+      /^entiendo( perfectamente)?.*?[.?!]\s*/is,
+      /^comprendo( perfectamente)?.*?[.?!]\s*/is,
+      /^lamento( mucho)?.*?[.?!]\s*/is,
+      /^es( completamente| muy)? válido.*?[.?!]\s*/is,
+      /^gracias por compartir(lo| esto)?.*?[.?!]\s*/is,
+      /^como modelo de lenguaje.*?\n+/is,
+      /^como ia.*?\n+/is,
+      /^aquí hay algunas (opciones|recomendaciones|pautas):.*?\n+/is,
     ];
 
-    for (const opener of cannedOpeners) {
-      sanitized = sanitized.replace(opener, '');
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const opener of roboticOpeners) {
+        if (opener.test(sanitized)) {
+          sanitized = sanitized.replace(opener, '').trim();
+          changed = true;
+        }
+      }
     }
 
-    return sanitized.trim();
+    // Capitalize first letter after trimming
+    if (sanitized.length > 0) {
+      sanitized = sanitized.charAt(0).toUpperCase() + sanitized.slice(1);
+    }
+
+    // Truncated sentence cleanup: if output was cut off mid-word without punctuation,
+    // trim to last clean sentence or add closure
+    if (sanitized.length > 20 && !/[.?!…]$/.test(sanitized)) {
+      const lastPunctuation = Math.max(
+        sanitized.lastIndexOf('.'),
+        sanitized.lastIndexOf('?'),
+        sanitized.lastIndexOf('!')
+      );
+      if (lastPunctuation > sanitized.length * 0.5) {
+        sanitized = sanitized.slice(0, lastPunctuation + 1).trim();
+      }
+    }
+
+    return sanitized;
   }
 }
