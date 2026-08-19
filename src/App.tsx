@@ -220,7 +220,7 @@ export const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-200 flex items-center justify-center p-6">
         <div className="text-center space-y-3 font-mono text-xs text-neutral-400">
-          <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p>Verificando compatibilidad de aceleración gráfica WebGPU...</p>
         </div>
       </div>
@@ -245,7 +245,7 @@ export const App: React.FC = () => {
   const isModelReady = engineState.status === 'ready' || engineState.status === 'generating';
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-emerald-950 selection:text-emerald-200">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-violet-950 selection:text-violet-200">
       {/* Top Header */}
       <Header
         onOpenPrivacy={() => setIsPrivacyModalOpen(true)}

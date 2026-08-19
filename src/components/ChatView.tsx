@@ -3,12 +3,14 @@
  * 
  * Sanctuary interface: intimate, distraction-free, focused on active listening.
  * lukson.arts visual universe: luxury dark glass and refined glowing capsules.
+ * Shows a cinematic ThinkingIndicator while the model is computing.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Square, ArrowUp } from 'lucide-react';
 import { ChatMessage } from '../core/types';
 import { MessageItem } from './MessageItem';
+import { ThinkingIndicator } from './ThinkingIndicator';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -71,6 +73,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
     e.target.style.height = `${Math.min(140, e.target.scrollHeight)}px`;
   };
 
+  // Determine if we should show the ThinkingIndicator:
+  // The model is generating but the last assistant message has no content yet (prefill phase)
+  const lastMsg = messages[messages.length - 1];
+  const showThinkingIndicator =
+    isGenerating && lastMsg?.role === 'assistant' && lastMsg?.isStreaming && !lastMsg?.content;
+
   return (
     <div className="flex-1 flex flex-col justify-between max-w-3xl w-full mx-auto px-4 sm:px-6 h-[calc(100svh-70px)]">
       {/* Messages Scroll Area */}
@@ -101,9 +109,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((msg) => (
-              <MessageItem key={msg.id} message={msg} />
-            ))}
+            {messages.map((msg) => {
+              // Don't render the empty streaming placeholder — ThinkingIndicator covers it
+              if (msg.role === 'assistant' && msg.isStreaming && !msg.content) return null;
+              return <MessageItem key={msg.id} message={msg} />;
+            })}
+
+            {/* Cinematic thinking indicator during prefill */}
+            {showThinkingIndicator && <ThinkingIndicator />}
+
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -119,7 +133,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
             placeholder="Decí lo que quieras..."
-            className="w-full resize-none bg-transparent text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none px-2 py-1 max-h-[140px] leading-relaxed font-light"
+            disabled={isGenerating}
+            className="w-full resize-none bg-transparent text-neutral-100 placeholder-neutral-500 text-sm focus:outline-none px-2 py-1 max-h-[140px] leading-relaxed font-light disabled:opacity-50"
           />
 
           {isGenerating ? (
