@@ -1,7 +1,7 @@
 /**
  * SAMUEL - Main Application Root
  * 
- * Orchestrates Hardware Detection, WebLLM Service, SAMUEL CORE, Cognitive Synthesizer,
+ * Orchestrates Hardware Detection, WebLLM Local Service, SAMUEL CORE Universal Intelligence,
  * Privacy Auditor, and the sanctuary user interface.
  */
 
@@ -68,62 +68,6 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  /**
-   * Fluid, ultra-fast typewriter streamer for instant cognitive responses
-   */
-  const streamCognitiveResponse = useCallback(
-    async (
-      targetText: string,
-      assistantMsgId: string,
-      userText: string,
-      rationale: string,
-      contradiction?: string
-    ) => {
-      const startTime = performance.now();
-      const words = targetText.split(' ');
-      let currentOutput = '';
-
-      for (let i = 0; i < words.length; i++) {
-        currentOutput += (i > 0 ? ' ' : '') + words[i];
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMsgId
-              ? { ...msg, content: currentOutput, isStreaming: true }
-              : msg
-          )
-        );
-        // 28ms pause per word for smooth organic typing feel (~35 wps)
-        await new Promise((res) => setTimeout(res, 28));
-      }
-
-      const totalTimeMs = Math.round(performance.now() - startTime);
-      privacyAuditor.registerSensitiveFragment(currentOutput);
-
-      const finalized = samuelEngine.registerTurnOutput(
-        userText,
-        currentOutput,
-        rationale,
-        contradiction,
-        { tokens: words.length, genTime: totalTimeMs }
-      );
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMsgId
-            ? {
-                ...msg,
-                content: finalized.content,
-                isStreaming: false,
-                tokensGenerated: words.length,
-                generationTimeMs: totalTimeMs,
-              }
-            : msg
-        )
-      );
-    },
-    [samuelEngine]
-  );
-
   const handleSendMessage = useCallback(
     async (userText: string) => {
       if (!userText.trim() || engineState.status === 'generating') return;
@@ -176,28 +120,15 @@ export const App: React.FC = () => {
 
       setMessages((prev) => [...prev, placeholderMsg]);
 
-      // 4. Instant Cognitive Streaming
-      // Guaranteed instant response (<300ms) with zero hallucination and zero loops
-      if (turnPlan.cognitiveResult?.fullResponse) {
-        await streamCognitiveResponse(
-          turnPlan.cognitiveResult.fullResponse,
-          assistantMsgId,
-          userText,
-          turnPlan.rationale,
-          turnPlan.detectedContradiction
-        );
-        return;
-      }
+      const startTime = performance.now();
+      let accumulatedContent = '';
+      let completionTokensCount = 0;
 
-      // Fallback to WebLLM if available
+      // 4. Genuine WebLLM Local Neural Inference in Web Worker
       try {
-        let accumulatedContent = '';
-        let completionTokensCount = 0;
-        const startTime = performance.now();
-
         await webLLMService.generateStream(turnPlan.messagesForLLM, {
           maxTokens: turnPlan.maxTokens,
-          temperature: 0.65,
+          temperature: 0.7,
           topP: 0.85,
           onToken: (_token, accumulated) => {
             accumulatedContent = accumulated;
@@ -210,11 +141,25 @@ export const App: React.FC = () => {
               )
             );
           },
+          onStats: (stats) => {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      tokensGenerated: stats.completionTokens,
+                      generationTimeMs: stats.totalTimeMs,
+                    }
+                  : msg
+              )
+            );
+          },
         });
 
         const totalTimeMs = Math.round(performance.now() - startTime);
         privacyAuditor.registerSensitiveFragment(accumulatedContent);
 
+        // Finalize message with sanitization and state registration
         const finalized = samuelEngine.registerTurnOutput(
           userText,
           accumulatedContent,
@@ -237,10 +182,28 @@ export const App: React.FC = () => {
           )
         );
       } catch (err) {
-        console.error('Generation stream error:', err);
+        console.error('Generation error, activating emergency recovery:', err);
+        const fallbackText = '¿Qué es lo que más te pesa de esto ahora mismo y qué sentís que necesitás para destrabarlo?';
+        const finalized = samuelEngine.registerTurnOutput(
+          userText,
+          fallbackText,
+          turnPlan.rationale,
+          turnPlan.detectedContradiction
+        );
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  content: finalized.content,
+                  isStreaming: false,
+                }
+              : msg
+          )
+        );
       }
     },
-    [engineState.status, jurisdiction, samuelEngine, streamCognitiveResponse]
+    [engineState.status, jurisdiction, samuelEngine]
   );
 
   const handleInterrupt = useCallback(() => {
@@ -262,7 +225,7 @@ export const App: React.FC = () => {
       <div className="min-h-screen bg-neutral-950 text-neutral-200 flex items-center justify-center p-6">
         <div className="text-center space-y-3 font-mono text-xs text-neutral-400">
           <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p>Verificando compatibilidad de aceleración gráfica WebGPU...</p>
+          <p>Verificando aceleración WebGPU...</p>
         </div>
       </div>
     );
@@ -294,20 +257,8 @@ export const App: React.FC = () => {
         onOpenSafety={() => setIsSafetyModalOpen(true)}
         onResetSession={handleResetSession}
         hasMessages={messages.length > 0}
-        isOfflineReady={engineState.isOfflineReady || true}
-        currentModel={engineState.currentModel || {
-          id: 'samuel-neural-engine',
-          name: 'SAMUEL Neural 0.5B',
-          family: 'SAMUEL Core',
-          parameterSize: 'Hybrid',
-          quantization: 'int8',
-          downloadSizeMB: 0,
-          vramEstimatedMB: 200,
-          contextWindow: 4096,
-          description: 'Motor cognitivo hiper-estructurado de baja latencia',
-          tier: 'recommended',
-          languages: ['es'],
-        }}
+        isOfflineReady={engineState.isOfflineReady}
+        currentModel={engineState.currentModel}
       />
 
       {/* Main View: Onboarding vs Chat */}
