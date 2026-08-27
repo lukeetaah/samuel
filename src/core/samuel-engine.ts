@@ -1,7 +1,7 @@
 /**
  * SAMUEL CORE - Master Dialogue Orchestrator
  * 
- * Delivers deep multi-turn conversational intelligence, active listening,
+ * Delivers deep conversational intelligence, active listening,
  * stateful dialectic continuity, and zero repetitive loops.
  */
 
@@ -68,7 +68,7 @@ export class SamuelEngine {
   }
 
   /**
-   * Prepares the turn plan with stateful multi-turn dialectical intelligence.
+   * Prepares the turn plan with clean neural prompt and dialectical metadata.
    */
   public prepareTurn(userInput: string, jurisdictionCode: string = 'AR'): EngineTurnPlan {
     // 1. Safety check (local deterministic check for extreme self-harm)
@@ -86,8 +86,9 @@ export class SamuelEngine {
     const turns = this.state.getTurns();
     const currentTurnIndex = turns.length + 1;
 
-    // 2. High-precision Multi-Turn Dialectical Synthesis
+    // 2. High-precision Multi-Turn Dialectical Strategy & Rationale
     const dialogueResult = this.dialogueEngine.processTurn(userInput, currentTurnIndex);
+    const strategy = this.questionStrategy.evaluateStrategy(userInput, this.state.getMemory(), currentTurnIndex);
 
     // 3. Contradiction analysis
     const turnsHistoryText = turns.map(t => `U: ${t.userMessage} | S: ${t.assistantResponse}`).join(' ');
@@ -97,12 +98,14 @@ export class SamuelEngine {
       this.state.recordContradiction(contradiction.observationPhrase);
     }
 
-    // 4. Few-shot system prompt for neural inference
-    const systemPrompt = `Sos SAMUEL. Respondé exactamente con este calibre de sobriedad y profundidad:
-U: ${userInput}
-S: ${dialogueResult.fullResponse}`;
+    // 4. Neural System Prompt
+    const systemPrompt = this.buildSystemPrompt(
+      strategy.recommendedAngle,
+      contradiction.detected ? contradiction.observationPhrase : undefined
+    );
 
-    const recentMessages = this.state.getMessages().slice(-2);
+    // 5. Context window: system + recent 4 messages + current user input
+    const recentMessages = this.state.getMessages().slice(-4);
     const messagesForLLM: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
       ...recentMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
@@ -113,11 +116,21 @@ S: ${dialogueResult.fullResponse}`;
       safetyCheck,
       systemPrompt,
       messagesForLLM,
-      rationale: dialogueResult.rationale,
+      rationale: dialogueResult.rationale || strategy.rationale,
       detectedContradiction: contradiction.detected ? contradiction.observationPhrase : undefined,
-      maxTokens: 75,
+      maxTokens: 70,
       dialogueResult,
     };
+  }
+
+  private buildSystemPrompt(angleDirective: string, contradictionHint?: string): string {
+    return `Sos SAMUEL, un espacio confidencial, sobrio y lúcido para pensar en voz alta. Hablás en español natural y directo.
+Tu rol:
+1. Escuchás lo que la persona expresa sobre cualquier tema (trabajo, dudas, proyectos, relaciones, plata, miedos) y tocás el nudo real de lo que dijo.
+2. Respondés en 1 o 2 oraciones breves y lúcidas.
+3. Cerrás con UNA sola pregunta penetrante que abra la cabeza.
+4. Jamás uses fórmulas vacías ("Entiendo tu situación", "¡Claro!", "Es válido sentirse así", "Lamento mucho") ni des consejos no solicitados.
+5. Foco: ${angleDirective}${contradictionHint ? ` | Tensión: "${contradictionHint}"` : ''}`;
   }
 
   public registerTurnOutput(
